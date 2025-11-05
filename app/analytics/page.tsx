@@ -213,7 +213,11 @@ export default function AnalyticsPage() {
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={chartBookings}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                    <XAxis dataKey="date" stroke="#9ca3af" tick={{ fontSize: 10 }} />
+                    <XAxis
+                      dataKey="date"
+                      stroke="#9ca3af"
+                      tick={{ fontSize: 10 }}
+                    />
                     <YAxis allowDecimals={false} stroke="#9ca3af" />
                     <Tooltip
                       contentStyle={{
@@ -357,7 +361,11 @@ export default function AnalyticsPage() {
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                    <XAxis dataKey="date" stroke="#9ca3af" tick={{ fontSize: 10 }} />
+                    <XAxis
+                      dataKey="date"
+                      stroke="#9ca3af"
+                      tick={{ fontSize: 10 }}
+                    />
                     <YAxis allowDecimals={false} stroke="#9ca3af" />
                     <Tooltip
                       contentStyle={{
@@ -414,33 +422,85 @@ export default function AnalyticsPage() {
       {tab === "prescriptive" && (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
           {data.map((room) => {
-            const totalBookings = room.bookingsOverTime.reduce((a, b) => a + b.count, 0);
-            const avgBookings = totalBookings / (room.bookingsOverTime.length || 1);
+            const totalBookings = room.bookingsOverTime.reduce(
+              (a, b) => a + b.count,
+              0
+            );
+            const avgBookings =
+              totalBookings / (room.bookingsOverTime.length || 1);
 
             let recommendation = "";
             let optimalPrice = room.price;
 
+            // --- NEW: Define dynamic theme classes ---
+            let titleClass = "text-blue-400";
+            let hoverClass = "hover:shadow-blue-500/40";
+            let badgeBgClass = "bg-blue-700/30";
+            let badgeTextClass = "text-blue-300";
+            let badgeBorderClass = "border-blue-600/40";
+            let recIconClass = "bg-yellow-400";
+            let recTextClass = "text-yellow-400";
+            // --- End New ---
+
             if (avgBookings < 3) {
-              recommendation = "Low demand. Consider reducing price or offering promos.";
+              recommendation =
+                "Low demand. Consider reducing price or offering promos.";
               optimalPrice = room.price * 0.9;
+              // --- NEW: Set to RED theme for low demand ---
+              titleClass = "text-red-400";
+              hoverClass = "hover:shadow-red-500/40";
+              badgeBgClass = "bg-red-700/30";
+              badgeTextClass = "text-red-300";
+              badgeBorderClass = "border-red-600/40";
+              recIconClass = "bg-red-400";
+              recTextClass = "text-red-400";
             } else if (avgBookings < 7) {
-              recommendation = "Stable demand. Maintain current pricing strategy.";
+              recommendation =
+                "Stable demand. Maintain current pricing strategy.";
+              
+              // --- THIS IS YOUR REQUESTED LOGIC ---
+              if (room.name === "Standard Room") {
+                titleClass = "text-green-400";
+                hoverClass = "hover:shadow-green-500/40";
+                badgeBgClass = "bg-green-700/30";
+                badgeTextClass = "text-green-300";
+                badgeBorderClass = "border-green-600/40";
+                recIconClass = "bg-green-400";
+                recTextClass = "text-green-400";
+              }
+              // Other rooms will use the default blue theme
             } else {
-              recommendation = "High demand detected. Consider increasing price slightly.";
+              recommendation =
+                "High demand detected. Consider increasing price slightly.";
               optimalPrice = room.price * 1.1;
+              // --- NEW: Set to CYAN theme for high demand ---
+              titleClass = "text-cyan-400";
+              hoverClass = "hover:shadow-cyan-500/40";
+              badgeBgClass = "bg-cyan-700/30";
+              badgeTextClass = "text-cyan-300";
+              badgeBorderClass = "border-cyan-600/40";
+              recIconClass = "bg-cyan-400";
+              recTextClass = "text-cyan-400";
             }
 
             return (
               <div
                 key={room.roomId}
-                className="bg-gradient-to-b from-gray-800 to-gray-900 border border-gray-700 rounded-2xl p-6 shadow-lg hover:shadow-blue-500/40 hover:scale-[1.01] transition-all duration-300 flex flex-col justify-between"
+                // --- MODIFIED: Apply dynamic hover class ---
+                className={`bg-gradient-to-b from-gray-800 to-gray-900 border border-gray-700 rounded-2xl p-6 shadow-lg ${hoverClass} hover:scale-[1.01] transition-all duration-300 flex flex-col justify-between`}
               >
                 <div>
                   <div className="flex items-center justify-between mb-5">
-                    <h2 className="text-2xl font-bold text-blue-400 tracking-tight">
+                    {/* --- MODIFIED: Apply dynamic title class --- */}
+                    <h2
+                      className={`text-2xl font-bold ${titleClass} tracking-tight`}
+                    >
                       {room.name}
                     </h2>
-                    <span className="px-3 py-1 text-xs font-semibold rounded-full bg-blue-700/30 text-blue-300 border border-blue-600/40">
+                    {/* --- MODIFIED: Apply dynamic badge classes --- */}
+                    <span
+                      className={`px-3 py-1 text-xs font-semibold rounded-full ${badgeBgClass} ${badgeTextClass} border ${badgeBorderClass}`}
+                    >
                       Prescriptive Insight
                     </span>
                   </div>
@@ -460,8 +520,14 @@ export default function AnalyticsPage() {
 
                   <div className="mt-6 bg-gray-900/60 backdrop-blur-sm p-5 rounded-xl border border-gray-700">
                     <div className="flex items-center mb-3">
-                      <div className="w-3 h-3 rounded-full bg-yellow-400 mr-2 animate-pulse" />
-                      <h3 className="text-lg font-semibold text-yellow-400">
+                      {/* --- MODIFIED: Apply dynamic recommendation icon class --- */}
+                      <div
+                        className={`w-3 h-3 rounded-full ${recIconClass} mr-2 animate-pulse`}
+                      />
+                      {/* --- MODIFIED: Apply dynamic recommendation text class --- */}
+                      <h3
+                        className={`text-lg font-semibold ${recTextClass}`}
+                      >
                         Recommendation 💡
                       </h3>
                     </div>
