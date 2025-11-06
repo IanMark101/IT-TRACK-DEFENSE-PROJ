@@ -86,8 +86,9 @@ export default function AnalyticsPage() {
   const movingAverage = (values: number[], window = 3) => {
     const avg: (number | null)[] = [];
     for (let i = 0; i < values.length; i++) {
-      if (i < window - 1) avg.push(null);
-      else {
+      if (i < window - 1) {
+        avg.push(null);
+      } else {
         const windowValues = values.slice(i - window + 1, i + 1);
         const sum = windowValues.reduce((a, b) => a + b, 0);
         avg.push(sum / windowValues.length);
@@ -98,29 +99,50 @@ export default function AnalyticsPage() {
 
   const exponentialSmoothing = (values: number[], alpha = 0.3) => {
     const smooth: (number | null)[] = [];
-    values.forEach((val, i) => {
-      if (i === 0) smooth.push(null);
-      else if (smooth[i - 1] == null) smooth.push(val);
-      else smooth.push(alpha * val + (1 - alpha) * (smooth[i - 1] as number));
-    });
+    if (values.length === 0) return [];
+
+    for (let i = 0; i < values.length; i++) {
+      if (i === 0) {
+        smooth.push(null);
+      } else if (i === 1) {
+        smooth.push(values[0]);
+      } else {
+        const prevSmooth = smooth[i - 1];
+        const prevValue = values[i - 1];
+
+        if (prevSmooth === null) {
+          smooth.push(null);
+        } else {
+          smooth.push(alpha * prevValue + (1 - alpha) * prevSmooth);
+        }
+      }
+    }
     return smooth;
   };
 
   const linearRegression = (values: number[]) => {
     const n = values.length;
     if (n < 2) return values.map((v) => v);
-    const xMean = (n - 1) / 2;
-    const yMean = values.reduce((a, b) => a + b, 0) / n;
+    
+    const points = values.map((y, i) => ({ x: i, y: y }));
+    
+    const xMean = points.reduce((a, b) => a + b.x, 0) / n;
+    const yMean = points.reduce((a, b) => a + b.y, 0) / n;
+
     let numerator = 0;
     let denominator = 0;
-    values.forEach((y, i) => {
-      numerator += (i - xMean) * (y - yMean);
-      denominator += (i - xMean) ** 2;
-    });
+    
+    for (const p of points) {
+      numerator += (p.x - xMean) * (p.y - yMean);
+      denominator += (p.x - xMean) ** 2;
+    }
+
     if (denominator === 0) return values.map(() => yMean);
+
     const slope = numerator / denominator;
     const intercept = yMean - slope * xMean;
-    return values.map((_, i) => slope * i + intercept);
+
+    return points.map((p) => slope * p.x + intercept);
   };
 
   if (loading)
