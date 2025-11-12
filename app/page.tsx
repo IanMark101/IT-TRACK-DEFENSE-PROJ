@@ -1,4 +1,3 @@
-// app/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -12,7 +11,6 @@ interface Room {
   createdAt: string;
 }
 
-// Metric card component
 const RoomMetricCard: React.FC<{ title: string; value: string; color: string }> = ({
   title,
   value,
@@ -25,7 +23,7 @@ const RoomMetricCard: React.FC<{ title: string; value: string; color: string }> 
 );
 
 export default function HomePage() {
-  const [rooms, setRooms] = useState<Room[]>([]);
+  const [rooms, setRooms] = useState<Room[]>([]); // ✅ Start as empty array
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -35,9 +33,12 @@ export default function HomePage() {
       try {
         const res = await fetch("/api/rooms", { cache: "no-store" });
         const data = await res.json();
-        setRooms(data.rooms);
+        
+        // ✅ SAFE: Fallback to empty array if API fails
+        setRooms(data.rooms || []);
       } catch (error) {
         console.error("Failed to fetch rooms:", error);
+        setRooms([]); // ✅ Set to empty on error
       } finally {
         setLoading(false);
       }
@@ -115,7 +116,8 @@ export default function HomePage() {
             <p className="text-center text-gray-400 text-lg">Loading rooms...</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-              {rooms.map((room) => (
+              {/* ✅ SAFE RENDER: rooms?.map with fallback */}
+              {rooms?.length > 0 ? rooms.map((room) => (
                 <div key={room.id} className="bg-gray-800 border border-gray-700 rounded-xl p-6 shadow-2xl transition-transform duration-300 hover:shadow-blue-500/50 hover:scale-[1.01] flex flex-col">
                   <div className="flex flex-col flex-1">
                     <h4 className="text-2xl font-bold text-blue-400 mb-3">{room.name}</h4>
@@ -129,7 +131,9 @@ export default function HomePage() {
                     </div>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <p className="text-center text-gray-400 col-span-3">No rooms available.</p>
+              )}
             </div>
           )}
         </div>

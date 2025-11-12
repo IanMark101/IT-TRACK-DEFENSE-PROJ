@@ -1,34 +1,18 @@
-// app/api/rooms/route.ts
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   try {
     const rooms = await prisma.room.findMany({
       include: {
         bookings: {
-          select: {
-            id: true,
-            guestName: true,
-            createdAt: true,
-          },
+          select: { id: true, guestName: true, createdAt: true },
+          orderBy: { createdAt: "asc" },
         },
       },
       orderBy: { id: "asc" },
     });
-
-    return new Response(JSON.stringify({ rooms }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return Response.json({ rooms });
   } catch (error) {
-    console.error("Rooms GET error:", error);
-    return new Response(JSON.stringify({ error: "Failed to fetch rooms" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
-  } finally {
-    // await prisma.$disconnect();
+    return Response.json({ error: "Failed to fetch rooms" }, { status: 500 });
   }
 }

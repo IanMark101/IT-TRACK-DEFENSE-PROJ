@@ -1,69 +1,52 @@
-// app/api/analytics/route.ts
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 
-const prisma = new PrismaClient();
+// Cache data for 1 minute
+let cache: { data: any; timestamp: number } | null = null;
+const CACHE_DURATION = 60000; // 60 seconds
 
 export async function GET() {
   try {
-    // Fetch rooms + bookings (we only need guestName and createdAt from bookings)
+    // If cache is fresh, use it
+    if (cache && Date.now() - cache.timestamp < CACHE_DURATION) {
+      return Response.json(cache.data);
+    }
+
     const rooms = await prisma.room.findMany({
       include: {
         bookings: {
-          select: {
-            createdAt: true,
-            guestName: true,
-          },
+          select: { createdAt: true, guestName: true },
+          orderBy: { createdAt: "asc" },
         },
       },
+      orderBy: { id: "asc" },
     });
 
     const analytics = rooms.map((room) => {
-      // Count bookings per date
-      const bookingCountsByDate: { [date: string]: number } = {};
+      const bookingCountsByDate: Record<string, number> = {};
       room.bookings.forEach((b) => {
-        const date = b.createdAt.toISOString().split("T")[0]; // YYYY-MM-DD
+        const date = new Date(b.createdAt).toISOString().split("T")[0];
         bookingCountsByDate[date] = (bookingCountsByDate[date] || 0) + 1;
       });
 
-      // Convert to sorted array for charting
       const bookingsOverTime = Object.entries(bookingCountsByDate)
-        .map(([date, count], index) => ({
-          date,
-          count,
-          timeIndex: index,
-        }))
+        .map(([date, count], index) => ({ date, count, timeIndex: index }))
         .sort((a, b) => a.date.localeCompare(b.date));
 
-      // Guest-level records for descriptive table (keep full list)
       const guestRecords = room.bookings
         .map((b) => ({
           guestName: b.guestName || "Guest",
-          date: b.createdAt.toISOString().split("T")[0],
+          date: new Date(b.createdAt).toISOString().split("T")[0],
         }))
-        // sort newest first (optional) — change as needed
         .sort((a, b) => b.date.localeCompare(a.date));
 
-      return {
-        roomId: room.id,
-        name: room.name,
-        price: room.price,
-        bookingsOverTime,
-        guestRecords,
-      };
+      return { roomId: room.id, name: room.name, price: room.price, bookingsOverTime, guestRecords };
     });
 
-    return new Response(JSON.stringify({ analytics }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    // Save to cache
+    cache = { data: { analytics }, timestamp: Date.now() };
+    
+    return Response.json({ analytics });
   } catch (error) {
-    console.error("Analytics GET error:", error);
-    return new Response(JSON.stringify({ error: "Failed to fetch analytics" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
-  } finally {
-    // keep Prisma connection cleanup optional here (serverless vs persistent)
-    // await prisma.$disconnect();
+    return Response.json({ error: "Failed to fetch analytics", analytics: [] }, { status: 500 });
   }
 }
