@@ -7,19 +7,23 @@ interface Analytics { roomId: number; name: string; bookingsOverTime: BookingDat
 
 interface Props { data: Analytics[] }
 
+// ---------- Moving Average (period = 3) ----------
 const movingAverage = (values: number[], window = 3): (number | null)[] =>
   values.map((_, i) => (i < window - 1 ? null : values.slice(i - window + 1, i + 1).reduce((a, b) => a + b, 0) / window));
 
-const exponentialSmoothing = (values: number[], alpha = 0.3): (number | null)[] => {
+// ---------- Exponential Smoothing matching Excel ----------
+const exponentialSmoothing = (values: number[], alpha = 0.3): number[] => {
   if (values.length === 0) return [];
-  const smooth: (number | null)[] = [null];
-  smooth.push(values[0]);
-  for (let i = 1; i < values.length; i++) {
-    smooth.push(alpha * values[i] + (1 - alpha) * (smooth[i] as number));
+  const smooth: number[] = [values[0]]; // first actual as initial forecast
+  for (let i = 1; i <= values.length; i++) {
+    const prevForecast = smooth[i - 1];
+    const prevActual = values[i - 1] ?? prevForecast;
+    smooth.push(alpha * prevActual + (1 - alpha) * prevForecast);
   }
-  return smooth;
+  return smooth; // includes next predicted value
 };
 
+// ---------- Linear Regression ----------
 const linearRegression = (values: number[]): number[] => {
   const n = values.length;
   if (n < 2) return [...values];
@@ -40,19 +44,20 @@ const PredictiveTab: React.FC<Props> = ({ data }) => {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
       {data.map((room) => {
         const counts = room.bookingsOverTime.map(b => b.count);
+
         const ma = movingAverage(counts, 3);
-        const es = exponentialSmoothing(counts, 0.3);
+        const es = exponentialSmoothing(counts, 0.3); // includes next-day forecast
         const lr = linearRegression(counts);
 
-        // Compute next-day forecast
+        // Compute next-day date
         const lastDate = new Date(room.bookingsOverTime[room.bookingsOverTime.length - 1].date);
         const nextDate = new Date(lastDate);
         nextDate.setDate(nextDate.getDate() + 1);
         const nextDateStr = nextDate.toISOString().split("T")[0];
 
-        const nextMA = counts.slice(-3).length === 3 ? counts.slice(-3).reduce((a, b) => a + b, 0) / 3 : null;
-        const nextES = es[es.length - 1] !== null ? 0.3 * counts[counts.length - 1] + 0.7 * (es[es.length - 1] as number) : null;
-
+        // Next-day Moving Average (3-period) = average of last 3 actuals
+        const nextMA = counts.slice(-3).reduce((a, b) => a + b, 0) / 3;
+        const nextES = es[es.length - 1]; // Excel-style forecast for next day
         const n = counts.length;
         const xMean = (n - 1) / 2;
         const yMean = counts.reduce((a, b) => a + b, 0) / n;
@@ -77,9 +82,9 @@ const PredictiveTab: React.FC<Props> = ({ data }) => {
           {
             date: nextDateStr,
             actual: null,
-            movingAverage: nextMA ?? null,
-            expSmooth: nextES ?? null,
-            regression: nextLR ?? null,
+            movingAverage: nextMA,
+            expSmooth: nextES,
+            regression: nextLR,
           },
         ];
 
@@ -107,17 +112,17 @@ const PredictiveTab: React.FC<Props> = ({ data }) => {
 
               <p className="text-gray-300">
                 <span className="text-cyan-300 font-bold">Moving Average:</span>{" "}
-                {nextMA !== null ? nextMA.toFixed(2) : "N/A"}
+                {nextMA.toFixed(2)}
               </p>
 
               <p className="text-gray-300">
                 <span className="text-cyan-300 font-bold">Exponential Smoothing:</span>{" "}
-                {nextES !== null ? nextES.toFixed(2) : "N/A"}
+                {nextES.toFixed(3)} {/* matches Excel */}
               </p>
 
               <p className="text-gray-300">
                 <span className="text-cyan-300 font-bold">Linear Regression:</span>{" "}
-                {nextLR !== null ? nextLR.toFixed(2) : "N/A"}
+                {nextLR.toFixed(2)}
               </p>
             </div>
           </div>
